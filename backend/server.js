@@ -26,6 +26,8 @@ const ProjectSchema = new mongoose.Schema({
     title: String,
     category: String,
     imagePath: String,
+    projectLink: String,
+    status: String,
     createdAt: { type: Date, default: Date.now }
 });
 
@@ -58,6 +60,8 @@ app.post('/api/projects', upload.single('image'), async (req, res) => {
         const newProject = new Project({
             title: req.body.title,
             category: req.body.category,
+            projectLink: req.body.projectLink || '',
+            status: req.body.status || 'Fully Finished',
             imagePath: req.file ? `/uploads/${req.file.filename}` : req.body.imagePath
         });
         const savedProject = await newProject.save();

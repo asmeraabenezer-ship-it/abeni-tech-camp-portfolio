@@ -89,6 +89,17 @@
                             </select>
                         </div>
                         <div class="form-group">
+                            <label for="projectLink">Project Link (Optional)</label>
+                            <input type="url" id="projectLink" placeholder="https://example.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="status">Project Status</label>
+                            <select id="status" required>
+                                <option value="Fully Finished">Fully Finished</option>
+                                <option value="In Progress">In Progress</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label for="image">Project Image</label>
                             <input type="file" id="image" accept="image/*" required title="Choose project image">
                         </div>
@@ -160,7 +171,7 @@
                             <img src="${imgPath}" class="admin-project-thumb" alt="${p.title}">
                             <div>
                                 <div class="project-item-title">${p.title}</div>
-                                <div class="project-item-cat">${p.category}</div>
+                                <div class="project-item-cat">${p.category} | Status: ${p.status || 'Fully Finished'}</div>
                             </div>
                         </div>
                         <button class="delete-btn" onclick="deleteProject('${p._id}')" aria-label="Delete Project">
@@ -180,6 +191,8 @@
             const formData = new FormData();
             formData.append('title', document.getElementById('title').value);
             formData.append('category', document.getElementById('category').value);
+            formData.append('projectLink', document.getElementById('projectLink').value);
+            formData.append('status', document.getElementById('status').value);
             formData.append('image', document.getElementById('image').files[0]);
 
             const btn = form.querySelector('.upload-btn');

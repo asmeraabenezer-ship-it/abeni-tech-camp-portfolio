@@ -638,6 +638,30 @@ body {
     transition: var(--transition-smooth);
 }
 
+.project-status {
+    display: inline-block;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-bottom: auto; /* Push everything else down */
+    align-self: flex-start;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.status-finished {
+    background: rgba(0, 242, 254, 0.15);
+    color: var(--accent-primary);
+    border: 1px solid var(--accent-primary);
+}
+
+.status-progress {
+    background: rgba(255, 171, 0, 0.15);
+    color: #ffab00;
+    border: 1px solid #ffab00;
+}
+
 .project-card:hover .project-overlay {
     opacity: 1;
 }
@@ -818,7 +842,35 @@ body {
 
 @media (max-width: 768px) {
     .nav-links {
-        display: none; /* Mobile menu logic to be added in JS */
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background: rgba(10, 10, 10, 0.95);
+        -webkit-backdrop-filter: blur(15px);
+        backdrop-filter: blur(15px);
+        flex-direction: column;
+        align-items: center;
+        padding: 20px 0;
+        gap: 20px;
+        border-bottom: 1px solid var(--glass-border);
+        display: none;
+    }
+
+    .nav-links.active {
+        display: flex;
+        animation: slideDown 0.3s ease forwards;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     .menu-btn {

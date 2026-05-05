@@ -112,11 +112,31 @@ document.addEventListener('DOMContentLoaded', () => {
     // Mobile Menu Toggle
     // =========================================
     const menuBtn = document.querySelector('.menu-btn');
-    const navLinks = document.querySelector('.nav-links');
+    const navLinksContainer = document.querySelector('.nav-links');
 
     menuBtn.addEventListener('click', () => {
-        navLinks.style.display = navLinks.style.display === 'flex' ? 'none' : 'flex';
-        // Add more logic for mobile menu animation if needed
+        navLinksContainer.classList.toggle('active');
+        
+        const icon = menuBtn.querySelector('i');
+        if (navLinksContainer.classList.contains('active')) {
+            icon.classList.remove('fa-bars');
+            icon.classList.add('fa-times');
+        } else {
+            icon.classList.remove('fa-times');
+            icon.classList.add('fa-bars');
+        }
+    });
+
+    // Close mobile menu when a link is clicked
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', () => {
+            navLinksContainer.classList.remove('active');
+            const icon = menuBtn.querySelector('i');
+            if(icon) {
+                icon.classList.remove('fa-times');
+                icon.classList.add('fa-bars');
+            }
+        });
     });
 
     // =========================================
@@ -205,12 +225,17 @@ document.addEventListener('DOMContentLoaded', () => {
             // Fix path if it's from images/ folder
             const imgPath = project.imagePath.startsWith('/') ? `http://localhost:5000${project.imagePath}` : project.imagePath;
 
+            const link = project.projectLink ? project.projectLink : '#';
+            const statusLabel = project.status || 'Fully Finished';
+            const statusClass = statusLabel === 'In Progress' ? 'status-progress' : 'status-finished';
+
             card.innerHTML = `
                 <img src="${imgPath}" alt="${project.title}">
                 <div class="project-overlay">
+                    <span class="project-status ${statusClass}">${statusLabel}</span>
                     <h4>${project.title}</h4>
                     <p>${project.category}</p>
-                    <a href="#" class="view-btn" aria-label="View Project" title="View Project"><i class="fas fa-external-link-alt"></i></a>
+                    <a href="${link}" ${project.projectLink ? 'target="_blank" rel="noopener"' : ''} class="view-btn" aria-label="View Project" title="View Project"><i class="fas fa-external-link-alt"></i></a>
                 </div>
             `;
             portfolioGrid.appendChild(card);
