@@ -43,16 +43,21 @@
     </style>
 </head>
 <body class="dark-mode">
-    <!-- Password Login -->
+    <!-- Secure Login Overlay -->
     <div id="login-overlay">
         <div class="login-card glass-card">
-            <h2 class="login-title">Private Admin Access</h2>
+            <h2 class="login-title"><i class="fas fa-shield-halved"></i> Admin Portal</h2>
             <form id="login-form" class="contact-form">
                 <div class="form-group">
-                    <input type="password" id="admin-pass" placeholder="Enter Admin Password" required>
+                    <label for="admin-user" style="text-align: left;">Username</label>
+                    <input type="text" id="admin-user" placeholder="Enter username (default: abeni)" autocomplete="username">
                 </div>
-                <button type="submit" class="btn btn-primary login-btn">Login</button>
-                <p id="login-err" class="login-err">Invalid Password</p>
+                <div class="form-group">
+                    <label for="admin-pass" style="text-align: left;">Password</label>
+                    <input type="password" id="admin-pass" placeholder="Enter password" required autocomplete="current-password">
+                </div>
+                <button type="submit" id="login-btn" class="btn btn-primary login-btn">Login</button>
+                <p id="login-err" class="login-err"></p>
             </form>
         </div>
     </div>
@@ -119,25 +124,78 @@
     </div>
 
     <script>
-        const ADMIN_PASS = 'abeni2026'; // Change your password here
+        const API_BASE = 'http://localhost:5000';
         const loginOverlay = document.getElementById('login-overlay');
         const adminContent = document.getElementById('admin-content');
         const loginForm = document.getElementById('login-form');
+        const loginBtn = document.getElementById('login-btn');
         const loginErr = document.getElementById('login-err');
+        const uploadForm = document.getElementById('upload-form');
+        const container = document.getElementById('admin-projects-container');
 
-        // Check Login Status
-        if (localStorage.getItem('adminLoggedIn') === 'true') {
-            showAdmin();
+        function getToken() {
+            return localStorage.getItem('adminToken');
         }
 
-        loginForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const pass = document.getElementById('admin-pass').value;
-            if (pass === ADMIN_PASS) {
-                localStorage.setItem('adminLoggedIn', 'true');
-                showAdmin();
-            } else {
+        // Verify stored session on page load
+        async function checkAuthSession() {
+            const token = getToken();
+            if (!token) {
+                showLogin();
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/verify`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (res.ok) {
+                    showAdmin();
+                } else {
+                    logout(false);
+                }
+            } catch (err) {
+                // If backend is unreachable, keep user at login with friendly notice
+                showLogin();
+                loginErr.innerText = 'Could not reach server. Make sure the backend is running.';
                 loginErr.style.display = 'block';
+            }
+        }
+
+        // Handle secure login via Backend API
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            loginErr.style.display = 'none';
+            loginBtn.disabled = true;
+            loginBtn.innerText = 'Verifying...';
+
+            const username = document.getElementById('admin-user').value.trim();
+            const password = document.getElementById('admin-pass').value;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.token) {
+                    localStorage.setItem('adminToken', data.token);
+                    loginForm.reset();
+                    showAdmin();
+                } else {
+                    loginErr.innerText = data.message || 'Invalid username or password.';
+                    loginErr.style.display = 'block';
+                }
+            } catch (err) {
+                loginErr.innerText = 'Network error: Backend server is not running on port 5000.';
+                loginErr.style.display = 'block';
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.innerText = 'Login';
             }
         });
 
@@ -147,23 +205,32 @@
             loadProjects();
         }
 
-        function logout() {
-            localStorage.removeItem('adminLoggedIn');
-            window.location.reload();
+        function showLogin() {
+            loginOverlay.style.display = 'flex';
+            adminContent.style.display = 'none';
         }
 
-        const API_URL = 'http://localhost:5000/api/projects';
-        const form = document.getElementById('upload-form');
-        const container = document.getElementById('admin-projects-container');
+        function logout(reload = true) {
+            localStorage.removeItem('adminToken');
+            if (reload) {
+                window.location.reload();
+            } else {
+                showLogin();
+            }
+        }
 
         // Load Projects
         async function loadProjects() {
             try {
-                const res = await fetch(API_URL);
+                const res = await fetch(`${API_BASE}/api/projects`);
                 const projects = await res.json();
                 container.innerHTML = '';
+                if (!projects || projects.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">No projects found. Add one above!</p>';
+                    return;
+                }
                 projects.forEach(p => {
-                    const imgPath = p.imagePath.startsWith('/') ? `http://localhost:5000${p.imagePath}` : p.imagePath;
+                    const imgPath = p.imagePath && p.imagePath.startsWith('/') ? `${API_BASE}${p.imagePath}` : (p.imagePath || 'images/hero_illustration.png');
                     const div = document.createElement('div');
                     div.className = 'admin-project-item';
                     div.innerHTML = `
@@ -181,13 +248,20 @@
                     container.appendChild(div);
                 });
             } catch (err) {
-                console.error('Failed to load projects');
+                console.error('Failed to load projects:', err);
             }
         }
 
         // Handle Upload
-        form.addEventListener('submit', async (e) => {
+        uploadForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const token = getToken();
+            if (!token) {
+                alert('Session expired. Please log in.');
+                logout();
+                return;
+            }
+
             const formData = new FormData();
             formData.append('title', document.getElementById('title').value);
             formData.append('category', document.getElementById('category').value);
@@ -195,19 +269,29 @@
             formData.append('status', document.getElementById('status').value);
             formData.append('image', document.getElementById('image').files[0]);
 
-            const btn = form.querySelector('.upload-btn');
+            const btn = uploadForm.querySelector('.upload-btn');
             btn.innerText = 'Uploading...';
             btn.disabled = true;
 
             try {
-                const res = await fetch(API_URL, {
+                const res = await fetch(`${API_BASE}/api/projects`, {
                     method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
                     body: formData
                 });
+
                 if (res.ok) {
                     alert('Project uploaded successfully!');
-                    form.reset();
+                    uploadForm.reset();
                     loadProjects();
+                } else if (res.status === 401) {
+                    alert('Unauthorized or session expired. Please log in again.');
+                    logout();
+                } else {
+                    const errData = await res.json().catch(() => ({}));
+                    alert(errData.message || 'Upload failed.');
                 }
             } catch (err) {
                 alert('Upload failed. Is the server running?');
@@ -219,17 +303,38 @@
 
         // Delete Project
         async function deleteProject(id) {
+            const token = getToken();
+            if (!token) {
+                alert('Session expired. Please log in.');
+                logout();
+                return;
+            }
+
             if (confirm('Are you sure you want to delete this project?')) {
                 try {
-                    const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+                    const res = await fetch(`${API_BASE}/api/projects/${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
                     if (res.ok) {
                         loadProjects();
+                    } else if (res.status === 401) {
+                        alert('Unauthorized or session expired. Please log in again.');
+                        logout();
+                    } else {
+                        alert('Delete failed.');
                     }
                 } catch (err) {
-                    alert('Delete failed.');
+                    alert('Delete failed. Is the server running?');
                 }
             }
         }
+
+        // Initialize auth check
+        checkAuthSession();
     </script>
 </body>
 </html>

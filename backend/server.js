@@ -3,10 +3,14 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 const multer = require('multer');
+const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const JWT_SECRET = process.env.JWT_SECRET || 'abeni_tech_portfolio_jwt_secret_key_2026';
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'abeni';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'abeni2026';
 
 // Middleware
 app.use(cors());
@@ -14,12 +18,26 @@ app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/images', express.static(path.join(__dirname, '../images')));
 
+// Auth Middleware
+const requireAuth = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) {
+        return res.status(401).json({ message: 'Authorization token required' });
+    }
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch (err) {
+        return res.status(401).json({ message: 'Invalid or expired token' });
+    }
+};
+
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/abeni_portfolio', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-}).then(() => console.log('MongoDB Connected'))
-  .catch(err => console.log('MongoDB connection error:', err));
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/abeni_portfolio')
+    .then(() => console.log('MongoDB Connected'))
+    .catch(err => console.log('MongoDB connection error:', err));
 
 // Model
 const ProjectSchema = new mongoose.Schema({
@@ -33,7 +51,28 @@ const ProjectSchema = new mongoose.Schema({
 
 const Project = mongoose.model('Project', ProjectSchema);
 
-// Routes
+// Admin Auth Routes
+app.post('/api/admin/login', (req, res) => {
+    const { username, password } = req.body;
+    const isValidUser = !username || username.trim().toLowerCase() === ADMIN_USERNAME.toLowerCase();
+    const isValidPass = password === ADMIN_PASSWORD;
+
+    if (isValidUser && isValidPass) {
+        const token = jwt.sign(
+            { role: 'admin', username: username || ADMIN_USERNAME },
+            JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+        return res.json({ success: true, token, message: 'Authentication successful' });
+    }
+    return res.status(401).json({ success: false, message: 'Invalid credentials' });
+});
+
+app.get('/api/admin/verify', requireAuth, (req, res) => {
+    res.json({ valid: true, user: req.user });
+});
+
+// Public Route: Fetch all projects
 app.get('/api/projects', async (req, res) => {
     try {
         const projects = await Project.find().sort({ createdAt: -1 });
@@ -55,7 +94,8 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-app.post('/api/projects', upload.single('image'), async (req, res) => {
+// Protected Route: Upload Project
+app.post('/api/projects', requireAuth, upload.single('image'), async (req, res) => {
     try {
         const newProject = new Project({
             title: req.body.title,
@@ -71,7 +111,8 @@ app.post('/api/projects', upload.single('image'), async (req, res) => {
     }
 });
 
-app.delete('/api/projects/:id', async (req, res) => {
+// Protected Route: Delete Project
+app.delete('/api/projects/:id', requireAuth, async (req, res) => {
     try {
         await Project.findByIdAndDelete(req.params.id);
         res.json({ message: 'Project deleted' });
@@ -83,3 +124,4 @@ app.delete('/api/projects/:id', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
+
