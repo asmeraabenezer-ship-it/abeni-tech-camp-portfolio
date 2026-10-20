@@ -5,8 +5,8 @@
 // Found in: Supabase Dashboard -> Project Settings -> API
 // ========================================================
 
-const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL = 'https://qnholjcnevpgvuesddbq.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_AlLQ6fQBfr2G05r-MLyK5Q_ozTaZcZJ';
 
 // Admin Portal passcode for managing projects via admin.html
 const ADMIN_PASSCODE = 'abeni2026';
