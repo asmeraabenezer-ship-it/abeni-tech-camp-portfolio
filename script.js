@@ -194,55 +194,81 @@ document.addEventListener('DOMContentLoaded', () => {
     if (aboutSection) countObserver.observe(aboutSection);
 
     // =========================================
-    // Fetch Projects from Backend
+    // Fetch Projects from Supabase (or fallback)
     // =========================================
     const portfolioGrid = document.querySelector('.portfolio-grid');
-    // Change this URL to your deployed backend URL once you have it
-    const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? 'http://localhost:5000/api/projects'
-        : 'https://your-backend-service.com/api/projects'; 
 
     async function fetchProjects() {
+        if (!portfolioGrid) return;
+
+        // Try Supabase first (cloud database on Vercel)
+        if (typeof supabaseClient !== 'undefined' && supabaseClient !== null) {
+            try {
+                const { data: projects, error } = await supabaseClient
+                    .from('projects')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (!error && projects && projects.length > 0) {
+                    renderProjects(projects);
+                    return;
+                }
+            } catch (err) {
+                console.warn('Supabase fetch notice:', err.message);
+            }
+        }
+
+        // Fallback: Local backend if running
         try {
-            const response = await fetch(API_URL);
-            const projects = await response.json();
-            
-            if (projects.length > 0) {
-                renderProjects(projects);
+            const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                ? 'http://localhost:5000/api/projects'
+                : null;
+            if (API_URL) {
+                const response = await fetch(API_URL);
+                if (response.ok) {
+                    const projects = await response.json();
+                    if (projects && projects.length > 0) {
+                        renderProjects(projects);
+                    }
+                }
             }
         } catch (err) {
-            console.error('Error fetching projects:', err);
-            // Fallback to static content if backend is not running
+            // Silently fall back to static projects already present in index.html
         }
     }
 
     function renderProjects(projects) {
-        portfolioGrid.innerHTML = ''; // Clear existing
+        portfolioGrid.innerHTML = ''; // Clear default static cards
         projects.forEach(project => {
             const card = document.createElement('div');
             card.className = 'project-card glass-card reveal';
             
-            // Fix path if it's from images/ folder
-            const imgPath = project.imagePath.startsWith('/') ? `http://localhost:5000${project.imagePath}` : project.imagePath;
+            // Handle both Supabase image_url and legacy backend imagePath
+            const imgPath = project.image_url 
+                || (project.imagePath && project.imagePath.startsWith('/') ? `http://localhost:5000${project.imagePath}` : project.imagePath)
+                || 'images/hero_illustration.png';
 
-            const link = project.projectLink ? project.projectLink : '#';
+            const link = project.project_link || project.projectLink || '#';
+            const hasValidLink = link && link !== '#';
             const statusLabel = project.status || 'Fully Finished';
             const statusClass = statusLabel === 'In Progress' ? 'status-progress' : 'status-finished';
 
             card.innerHTML = `
-                <img src="${imgPath}" alt="${project.title}">
+                <img src="${imgPath}" alt="${project.title}" onerror="this.src='images/hero_illustration.png'">
                 <div class="project-overlay">
                     <span class="project-status ${statusClass}">${statusLabel}</span>
                     <h4>${project.title}</h4>
                     <p>${project.category}</p>
-                    <a href="${link}" ${project.projectLink ? 'target="_blank" rel="noopener"' : ''} class="view-btn" aria-label="View Project" title="View Project"><i class="fas fa-external-link-alt"></i></a>
+                    <a href="${link}" ${hasValidLink ? 'target="_blank" rel="noopener"' : ''} class="view-btn" aria-label="View Project" title="View Project"><i class="fas fa-external-link-alt"></i></a>
                 </div>
             `;
             portfolioGrid.appendChild(card);
         });
 
         // Re-initialize ScrollReveal for new elements
-        sr.reveal('.project-card', { interval: 200, scale: 0.85 });
+        if (typeof sr !== 'undefined') {
+            sr.reveal('.project-card', { interval: 200, scale: 0.85 });
+        }
     }
 
     fetchProjects();

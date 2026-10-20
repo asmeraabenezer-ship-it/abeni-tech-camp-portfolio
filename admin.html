@@ -7,6 +7,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+    <!-- Supabase SDK & Configuration -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
     <style>
         .admin-section { padding-top: 120px; min-height: 100vh; }
         .admin-card { max-width: 600px; margin: 0 auto 50px; }
@@ -14,16 +17,36 @@
         label { display: block; margin-bottom: 8px; color: var(--accent-primary); font-weight: 600; }
         select { width: 100%; padding: 15px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 10px; color: #fff; outline: none; }
         select option { background: var(--bg-dark); }
-        .project-list { margin-top: 50px; }
-        .admin-project-item { display: flex; align-items: center; justify-content: space-between; padding: 15px; margin-bottom: 10px; background: var(--glass-bg); border-radius: 10px; border: 1px solid var(--glass-border); }
+        .project-list { margin-top: 50px; max-width: 800px; margin-left: auto; margin-right: auto; }
+        .admin-project-item { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; margin-bottom: 12px; background: var(--glass-bg); border-radius: 10px; border: 1px solid var(--glass-border); transition: var(--transition-smooth); }
+        .admin-project-item:hover { transform: translateY(-2px); border-color: rgba(0, 242, 254, 0.4); }
         .admin-project-info { display: flex; align-items: center; gap: 15px; }
-        .admin-project-thumb { width: 50px; height: 50px; object-fit: cover; border-radius: 5px; }
-        .delete-btn { color: #ff4b2b; cursor: pointer; transition: var(--transition-smooth); background: none; border: none; font-size: 1.1rem; }
-        .delete-btn:hover { transform: scale(1.2); }
+        .admin-project-thumb { width: 55px; height: 55px; object-fit: cover; border-radius: 8px; border: 1px solid var(--glass-border); }
+        .delete-btn { color: #ff4b2b; cursor: pointer; transition: var(--transition-smooth); background: rgba(255, 75, 43, 0.1); border: 1px solid rgba(255, 75, 43, 0.3); border-radius: 8px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+        .delete-btn:hover { background: #ff4b2b; color: #fff; transform: scale(1.05); }
         .upload-btn { width: 100%; }
-        .project-list-title { margin-bottom: 20px; }
-        .project-item-title { font-weight: 600; }
-        .project-item-cat { font-size: 0.8rem; color: var(--text-muted); }
+        .project-list-title { margin-bottom: 20px; text-align: center; }
+        .project-item-title { font-weight: 600; font-size: 1.05rem; }
+        .project-item-cat { font-size: 0.85rem; color: var(--text-muted); }
+        .project-item-link { font-size: 0.8rem; color: var(--accent-primary); text-decoration: none; word-break: break-all; }
+
+        /* Status & Config Alert */
+        .status-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-left: 8px; }
+        .status-badge.finished { background: rgba(0, 242, 254, 0.2); color: var(--accent-primary); }
+        .status-badge.progress { background: rgba(255, 180, 0, 0.2); color: #ffb400; }
+
+        .config-warning {
+            background: rgba(255, 75, 43, 0.15);
+            border: 1px solid rgba(255, 75, 43, 0.4);
+            color: #ff9d8f;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            text-align: center;
+            font-size: 0.95rem;
+            display: none;
+        }
+        .config-warning a { color: #fff; text-decoration: underline; }
 
         /* Login Overlay */
         #login-overlay {
@@ -34,11 +57,12 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 20px;
         }
-        .login-card { text-align: center; width: 100%; max-width: 400px; }
-        .login-title { margin-bottom: 20px; }
+        .login-card { text-align: center; width: 100%; max-width: 400px; padding: 40px; }
+        .login-title { margin-bottom: 25px; font-size: 1.8rem; color: #fff; }
         .login-btn { width: 100%; }
-        .login-err { color: #ff4b2b; margin-top: 15px; display: none; }
+        .login-err { color: #ff4b2b; margin-top: 15px; display: none; font-size: 0.9rem; }
         #admin-content { display: none; }
     </style>
 </head>
@@ -53,37 +77,48 @@
                     <input type="text" id="admin-user" placeholder="Enter username (default: abeni)" autocomplete="username">
                 </div>
                 <div class="form-group">
-                    <label for="admin-pass" style="text-align: left;">Password</label>
-                    <input type="password" id="admin-pass" placeholder="Enter password" required autocomplete="current-password">
+                    <label for="admin-pass" style="text-align: left;">Passcode</label>
+                    <input type="password" id="admin-pass" placeholder="Enter password (default: abeni2026)" required autocomplete="current-password">
                 </div>
                 <button type="submit" id="login-btn" class="btn btn-primary login-btn">Login</button>
                 <p id="login-err" class="login-err"></p>
             </form>
+            <div style="margin-top: 20px;">
+                <a href="index.html" style="color: var(--text-muted); text-decoration: none; font-size: 0.85rem;">&larr; Back to Portfolio</a>
+            </div>
         </div>
     </div>
 
     <div id="admin-content">
-        <nav class="navbar">
+        <nav class="navbar" style="padding: 10px 0; background: rgba(10, 10, 10, 0.95);">
             <div class="container nav-container">
                 <a href="index.html" class="logo">Abeni<span>Admin</span></a>
-                <a href="#" class="btn btn-secondary" onclick="logout()">Logout</a>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <a href="index.html" class="btn btn-secondary"><i class="fas fa-external-link-alt"></i> View Site</a>
+                    <a href="#" class="btn btn-primary" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                </div>
             </div>
         </nav>
 
         <section class="admin-section">
             <div class="container">
                 <div class="section-header">
-                    <h2 class="section-title">Manage Portfolio</h2>
+                    <h2 class="section-title">Manage Portfolio Projects</h2>
                     <div class="title-underline"></div>
+                </div>
+
+                <!-- Missing Config Warning Banner -->
+                <div id="config-warning" class="config-warning">
+                    <i class="fas fa-triangle-exclamation"></i> <strong>Supabase Not Connected Yet:</strong> Please open <code>supabase-config.js</code> and paste your <strong>SUPABASE_URL</strong> and <strong>SUPABASE_ANON_KEY</strong>.
                 </div>
 
                 <!-- Upload Form -->
                 <div class="admin-card glass-card">
-                    <h3>Add New Project</h3>
+                    <h3 style="margin-bottom: 20px;"><i class="fas fa-plus-circle"></i> Add New Project</h3>
                     <form id="upload-form" class="contact-form">
                         <div class="form-group">
                             <label for="title">Project Title</label>
-                            <input type="text" id="title" placeholder="e.g. Modern Web App" required>
+                            <input type="text" id="title" placeholder="e.g. Modern Web App / Clinic Management" required>
                         </div>
                         <div class="form-group">
                             <label for="category">Category</label>
@@ -94,8 +129,8 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="projectLink">Project Link (Optional)</label>
-                            <input type="url" id="projectLink" placeholder="https://example.com">
+                            <label for="projectLink">Project Link / Live Demo (Optional)</label>
+                            <input type="url" id="projectLink" placeholder="https://my-app.vercel.app">
                         </div>
                         <div class="form-group">
                             <label for="status">Project Status</label>
@@ -105,18 +140,18 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="image">Project Image</label>
+                            <label for="image">Project Screenshot / Image</label>
                             <input type="file" id="image" accept="image/*" required title="Choose project image">
                         </div>
-                        <button type="submit" class="btn btn-primary upload-btn">Upload Project</button>
+                        <button type="submit" id="upload-btn" class="btn btn-primary upload-btn"><i class="fas fa-cloud-arrow-up"></i> Upload Project</button>
                     </form>
                 </div>
 
                 <!-- Project List -->
-                <div class="project-list reveal">
-                    <h3 class="project-list-title">Existing Projects</h3>
+                <div class="project-list">
+                    <h3 class="project-list-title"><i class="fas fa-list-check"></i> Live Projects in Supabase</h3>
                     <div id="admin-projects-container">
-                        <!-- Projects will be loaded here -->
+                        <!-- Projects loaded via Supabase -->
                     </div>
                 </div>
             </div>
@@ -124,85 +159,62 @@
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:5000';
         const loginOverlay = document.getElementById('login-overlay');
         const adminContent = document.getElementById('admin-content');
         const loginForm = document.getElementById('login-form');
         const loginBtn = document.getElementById('login-btn');
         const loginErr = document.getElementById('login-err');
         const uploadForm = document.getElementById('upload-form');
+        const uploadBtn = document.getElementById('upload-btn');
         const container = document.getElementById('admin-projects-container');
+        const configWarning = document.getElementById('config-warning');
 
-        function getToken() {
-            return localStorage.getItem('adminToken');
+        // Check if Supabase keys are provided
+        function isSupabaseReady() {
+            return typeof supabaseClient !== 'undefined' && supabaseClient !== null;
         }
 
-        // Verify stored session on page load
-        async function checkAuthSession() {
-            const token = getToken();
-            if (!token) {
+        // Check Auth on page load
+        function checkAuthSession() {
+            const isAuth = localStorage.getItem('abeni_admin_logged_in');
+            if (isAuth === 'true') {
+                showAdmin();
+            } else {
                 showLogin();
-                return;
-            }
-
-            try {
-                const res = await fetch(`${API_BASE}/api/admin/verify`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (res.ok) {
-                    showAdmin();
-                } else {
-                    logout(false);
-                }
-            } catch (err) {
-                // If backend is unreachable, keep user at login with friendly notice
-                showLogin();
-                loginErr.innerText = 'Could not reach server. Make sure the backend is running.';
-                loginErr.style.display = 'block';
             }
         }
 
-        // Handle secure login via Backend API
-        loginForm.addEventListener('submit', async (e) => {
+        // Login Handler
+        loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
             loginErr.style.display = 'none';
-            loginBtn.disabled = true;
-            loginBtn.innerText = 'Verifying...';
 
-            const username = document.getElementById('admin-user').value.trim();
-            const password = document.getElementById('admin-pass').value;
+            const user = document.getElementById('admin-user').value.trim();
+            const pass = document.getElementById('admin-pass').value;
 
-            try {
-                const res = await fetch(`${API_BASE}/api/admin/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
+            const expectedPass = typeof ADMIN_PASSCODE !== 'undefined' ? ADMIN_PASSCODE : 'abeni2026';
 
-                const data = await res.json();
-
-                if (res.ok && data.token) {
-                    localStorage.setItem('adminToken', data.token);
-                    loginForm.reset();
-                    showAdmin();
-                } else {
-                    loginErr.innerText = data.message || 'Invalid username or password.';
-                    loginErr.style.display = 'block';
-                }
-            } catch (err) {
-                loginErr.innerText = 'Network error: Backend server is not running on port 5000.';
+            if (pass === expectedPass) {
+                localStorage.setItem('abeni_admin_logged_in', 'true');
+                loginForm.reset();
+                showAdmin();
+            } else {
+                loginErr.innerText = 'Invalid passcode. Please enter the correct admin password.';
                 loginErr.style.display = 'block';
-            } finally {
-                loginBtn.disabled = false;
-                loginBtn.innerText = 'Login';
             }
         });
 
         function showAdmin() {
             loginOverlay.style.display = 'none';
             adminContent.style.display = 'block';
-            loadProjects();
+
+            if (!isSupabaseReady()) {
+                configWarning.style.display = 'block';
+                container.innerHTML = '<p style="color: #ff9d8f; text-align: center; padding: 25px;">Please paste your Supabase URL & Anon Key into <code>supabase-config.js</code> to enable live database storage.</p>';
+            } else {
+                configWarning.style.display = 'none';
+                loadProjects();
+            }
         }
 
         function showLogin() {
@@ -210,130 +222,157 @@
             adminContent.style.display = 'none';
         }
 
-        function logout(reload = true) {
-            localStorage.removeItem('adminToken');
-            if (reload) {
-                window.location.reload();
-            } else {
-                showLogin();
-            }
+        function logout() {
+            localStorage.removeItem('abeni_admin_logged_in');
+            showLogin();
         }
 
-        // Load Projects
+        // Load Projects from Supabase
         async function loadProjects() {
+            if (!isSupabaseReady()) return;
+
+            container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading projects from Supabase...</p>';
+
             try {
-                const res = await fetch(`${API_BASE}/api/projects`);
-                const projects = await res.json();
+                const { data: projects, error } = await supabaseClient
+                    .from('projects')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) {
+                    throw error;
+                }
+
                 container.innerHTML = '';
                 if (!projects || projects.length === 0) {
-                    container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">No projects found. Add one above!</p>';
+                    container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 25px;">No projects found in Supabase yet. Upload your first one above!</p>';
                     return;
                 }
+
                 projects.forEach(p => {
-                    const imgPath = p.imagePath && p.imagePath.startsWith('/') ? `${API_BASE}${p.imagePath}` : (p.imagePath || 'images/hero_illustration.png');
+                    const imgUrl = p.image_url || p.imagePath || 'images/hero_illustration.png';
+                    const statusClass = (p.status === 'In Progress') ? 'progress' : 'finished';
                     const div = document.createElement('div');
                     div.className = 'admin-project-item';
                     div.innerHTML = `
                         <div class="admin-project-info">
-                            <img src="${imgPath}" class="admin-project-thumb" alt="${p.title}">
+                            <img src="${imgUrl}" class="admin-project-thumb" alt="${p.title}" onerror="this.src='images/hero_illustration.png'">
                             <div>
-                                <div class="project-item-title">${p.title}</div>
-                                <div class="project-item-cat">${p.category} | Status: ${p.status || 'Fully Finished'}</div>
+                                <div class="project-item-title">
+                                    ${p.title} 
+                                    <span class="status-badge ${statusClass}">${p.status || 'Fully Finished'}</span>
+                                </div>
+                                <div class="project-item-cat">${p.category}</div>
+                                ${p.project_link ? `<a href="${p.project_link}" target="_blank" rel="noopener" class="project-item-link"><i class="fas fa-link"></i> ${p.project_link}</a>` : ''}
                             </div>
                         </div>
-                        <button class="delete-btn" onclick="deleteProject('${p._id}')" aria-label="Delete Project">
+                        <button class="delete-btn" onclick="deleteProject('${p.id}')" aria-label="Delete Project" title="Delete Project">
                             <i class="fas fa-trash"></i>
                         </button>
                     `;
                     container.appendChild(div);
                 });
             } catch (err) {
-                console.error('Failed to load projects:', err);
+                console.error('Error fetching Supabase projects:', err);
+                container.innerHTML = `<p style="color: #ff9d8f; text-align: center; padding: 20px;"><i class="fas fa-circle-exclamation"></i> Error loading projects: ${err.message || 'Make sure the projects table exists in Supabase.'}</p>`;
             }
         }
 
-        // Handle Upload
+        // Upload Project to Supabase Storage & Database
         uploadForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const token = getToken();
-            if (!token) {
-                alert('Session expired. Please log in.');
-                logout();
+
+            if (!isSupabaseReady()) {
+                alert('Please enter your Supabase URL and Anon Key in supabase-config.js first.');
                 return;
             }
 
-            const formData = new FormData();
-            formData.append('title', document.getElementById('title').value);
-            formData.append('category', document.getElementById('category').value);
-            formData.append('projectLink', document.getElementById('projectLink').value);
-            formData.append('status', document.getElementById('status').value);
-            formData.append('image', document.getElementById('image').files[0]);
+            const title = document.getElementById('title').value.trim();
+            const category = document.getElementById('category').value;
+            const projectLink = document.getElementById('projectLink').value.trim();
+            const status = document.getElementById('status').value;
+            const fileInput = document.getElementById('image');
+            const file = fileInput.files[0];
 
-            const btn = uploadForm.querySelector('.upload-btn');
-            btn.innerText = 'Uploading...';
-            btn.disabled = true;
+            if (!file) {
+                alert('Please select an image for this project.');
+                return;
+            }
+
+            uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading to Supabase...';
+            uploadBtn.disabled = true;
 
             try {
-                const res = await fetch(`${API_BASE}/api/projects`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: formData
-                });
+                // 1. Upload file to Supabase Storage bucket 'portfolio'
+                const fileExt = file.name.split('.').pop();
+                const sanitizedFileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
 
-                if (res.ok) {
-                    alert('Project uploaded successfully!');
-                    uploadForm.reset();
-                    loadProjects();
-                } else if (res.status === 401) {
-                    alert('Unauthorized or session expired. Please log in again.');
-                    logout();
-                } else {
-                    const errData = await res.json().catch(() => ({}));
-                    alert(errData.message || 'Upload failed.');
+                const { data: uploadData, error: uploadErr } = await supabaseClient
+                    .storage
+                    .from('portfolio')
+                    .upload(sanitizedFileName, file, {
+                        cacheControl: '3600',
+                        upsert: false
+                    });
+
+                if (uploadErr) {
+                    throw new Error(`Storage upload failed: ${uploadErr.message}. Make sure you have created a public bucket named "portfolio".`);
                 }
+
+                // 2. Get Public URL
+                const { data: { publicUrl } } = supabaseClient
+                    .storage
+                    .from('portfolio')
+                    .getPublicUrl(sanitizedFileName);
+
+                // 3. Save Project Record to 'projects' table
+                const { error: insertErr } = await supabaseClient
+                    .from('projects')
+                    .insert([{
+                        title,
+                        category,
+                        project_link: projectLink,
+                        status,
+                        image_url: publicUrl
+                    }]);
+
+                if (insertErr) {
+                    throw new Error(`Database insert failed: ${insertErr.message}. Make sure table "projects" exists.`);
+                }
+
+                alert('🎉 Project uploaded successfully to Supabase!');
+                uploadForm.reset();
+                loadProjects();
             } catch (err) {
-                alert('Upload failed. Is the server running?');
+                console.error('Upload Error:', err);
+                alert(`Upload failed: ${err.message}`);
             } finally {
-                btn.innerText = 'Upload Project';
-                btn.disabled = false;
+                uploadBtn.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Upload Project';
+                uploadBtn.disabled = false;
             }
         });
 
         // Delete Project
         async function deleteProject(id) {
-            const token = getToken();
-            if (!token) {
-                alert('Session expired. Please log in.');
-                logout();
-                return;
-            }
+            if (!isSupabaseReady()) return;
 
-            if (confirm('Are you sure you want to delete this project?')) {
+            if (confirm('Are you sure you want to delete this project from Supabase?')) {
                 try {
-                    const res = await fetch(`${API_BASE}/api/projects/${id}`, {
-                        method: 'DELETE',
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
-                    });
+                    const { error } = await supabaseClient
+                        .from('projects')
+                        .delete()
+                        .eq('id', id);
 
-                    if (res.ok) {
-                        loadProjects();
-                    } else if (res.status === 401) {
-                        alert('Unauthorized or session expired. Please log in again.');
-                        logout();
-                    } else {
-                        alert('Delete failed.');
-                    }
+                    if (error) throw error;
+                    loadProjects();
                 } catch (err) {
-                    alert('Delete failed. Is the server running?');
+                    console.error('Delete error:', err);
+                    alert(`Failed to delete project: ${err.message}`);
                 }
             }
         }
 
-        // Initialize auth check
+        // Initialize Auth Check
         checkAuthSession();
     </script>
 </body>
